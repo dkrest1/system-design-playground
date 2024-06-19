@@ -1,0 +1,16 @@
+{
+  "name": "system-design-playground",
+  "version": "1.0.0",
+  "description": "playground for system design",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "system",
+    "design",
+    "database"
+  ],
+  "author": "oluwatosin akande",
+  "license": "MIT"
+}
