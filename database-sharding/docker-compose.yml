@@ -1,0 +1,66 @@
+
+services:
+
+  app:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DB1_HOST: ${DB1_HOST}
+      DB1_PORT: ${DB1_PORT}
+      DB1_USER: ${DB1_USER}
+      DB1_PASSWORD: ${DB1_PASSWORD}
+      DB1_DATABASE: ${DB1_DATABASE}
+      DB2_HOST: ${DB2_HOST}
+      DB2_PORT: ${DB2_PORT}
+      DB2_USER: ${DB2_USER}
+      DB2_PASSWORD: ${DB2_PASSWORD}
+      DB2_DATABASE: ${DB2_DATABASE}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres1
+      - postgres2
+
+  postgres1:
+    image: postgres:latest
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB1_USER}
+      POSTGRES_PASSWORD: ${DB1_PASSWORD}
+      POSTGRES_DB: ${DB1_DATABASE}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata1:/var/lib/postgresql/data
+
+  postgres2:
+    image: postgres:latest
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB2_USER}
+      POSTGRES_PASSWORD: ${DB2_PASSWORD}
+      POSTGRES_DB: ${DB2_DATABASE}
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata2:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    env_file:
+      - .env
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "8081:80"
+    depends_on:
+      - postgres1
+      - postgres2
+
+volumes:
+  pgdata1:
+  pgdata2:
