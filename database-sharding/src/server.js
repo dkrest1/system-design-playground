@@ -1,5 +1,7 @@
 const express = require('express');
 const { Pool } = require('pg');
+const {v4: uuiv4} = require("uuid")
+const crypto = require("crypto")
 
 // Load environment variables from .env file
 require('dotenv').config();
@@ -24,12 +26,14 @@ const pool2 = new Pool({
   port: process.env.DB2_PORT,
 });
 
-// Function to create table if it does not exist
+// create table if it does not exist
 async function createTable(pool) {
   const createTableQuery = `
-    CREATE TABLE IF NOT EXISTS my_table (
-      id SERIAL PRIMARY KEY,
-      data TEXT
+    CREATE TABLE IF NOT EXISTS users (
+      id UUID PRIMARY KEY,
+      name VARCHAR(255),
+      age INT,
+      sex VARCHAR(10)
     );
   `;
   try {
@@ -53,13 +57,33 @@ async function initialize() {
   }
 }
 
+// intialize database
 initialize();
 
-app.post('/data', async (req, res) => {
-  const { id, data } = req.body;
-  const pool = id <= 4 ? pool1 : pool2;
+// number of shards
+const numberOfShards = 2
+
+// function to determine which pool to use based on userId
+function getShard(userId) {
+  // const hash = crypto.createHash('sha256').update(userId).digest('hex')
+  // console.log(hash, "hash")
+  // const result =  parseInt(hash, 16) % numberOfShards
+  // console.log(result, "result")
+  // return result === 0 ? pool1 : pool2
+
+  const hash = userId.charCodeAt(userId.length - 1);
+  const result = hash % numberOfShards
+  return result === 0 ? pool1 : pool2;
+}
+
+
+app.post('/users', async (req, res) => {
+  const { name, age, sex } = req.body;
+  // generate a unique userId
+  const userId = uuiv4()
+  const pool = getShard(userId)
   try {
-    const result = await pool.query('INSERT INTO my_table (id, data) VALUES ($1, $2) RETURNING *', [id, data]);
+    const result = await pool.query('INSERT INTO users (id, name, age, sex) VALUES ($1, $2, $3, $4) RETURNING *', [userId, name, age, sex]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -67,17 +91,34 @@ app.post('/data', async (req, res) => {
   }
 });
 
-app.get('/data/:id', async (req, res) => {
-  const { id } = req.params;
-  const pool = id <= 4 ? pool1 : pool2;
+// get all users
+app.get('/users', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM my_table WHERE id = $1', [id]);
+    const result1 = await pool1.query('SELECT * FROM users');
+    const result2 = await pool2.query('SELECT * FROM users');
+    const users = [...result1.rows, ...result2.rows];
+    res.status(200).json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+//  get a single user
+app.get('/users/:userId', async (req, res) => {
+  const { userId } = req.params;
+  // get the shard to use
+  const pool = getShard(userId);
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
     res.status(200).json(result.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
